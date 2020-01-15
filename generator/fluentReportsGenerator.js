@@ -1347,6 +1347,9 @@ class frSection { // jshint ignore:line
     get fixedHeight() { return this._fixedHeight; }
     set fixedHeight(val) { this._fixedHeight = !!val; }
 
+    get pageBreakagePoint() { return this._pageBreakagePoint; }
+    set pageBreakagePoint(val) { this._pageBreakagePoint = !!val; }
+
     get sectionId() { return this._sectionId; }
     get uuid() { return this._uuid; }
 
@@ -1521,7 +1524,9 @@ class frSection { // jshint ignore:line
         }
         let group = results[type];
         this._saveSectionInfo(group);
-
+        if(this._pageBreakagePoint === true){
+            results[type].push({type:'newPage'});
+        }
     }
 
     _saveSectionInfo(results) {
@@ -1702,6 +1707,7 @@ class frSection { // jshint ignore:line
         this._type = options && options.type || 0;
         this._stockElement = null;
         this._fixedHeight = false;
+        this._pageBreakagePoint = false;
         this._usingStock = false;
         this._groupName = options && options.group || '';
         this._properties = [
@@ -1724,6 +1730,9 @@ class frSection { // jshint ignore:line
             {type: 'display', field: 'hasFunctions', title: 'Functions', display: () => { return this._createSpan(this._hasFunctions, "\ue81f", this.clickFunctions.bind(this)); }},
             {type: 'display', field: 'hasCalculations', title: 'Calculations', display: () => { return this._createSpan(this._hasCalculations, "\uE824", this.clickCalcs.bind(this)); }}
         ];
+        if(options.title !== "Title Header" && options.title !== "Final Summary"){
+            this._properties.push({type: "boolean", field: "pageBreakagePoint", functionable: false, default: false});
+        }
         this._dataSet = options && options.dataSet || 0;
         if (this._type === 1 || this._type === 2) {
             this._properties.push({
