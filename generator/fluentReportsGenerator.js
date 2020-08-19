@@ -1998,6 +1998,7 @@ class frSection { // jshint ignore:line
     _parseSelf(data) {
         if (data.fixedHeight) {
             this.fixedHeight = data.fixedHeight;
+            this.pageBreak = data.pageBreak;
             this.height = data.height != null ? data.height : this.height;
         }
     }
