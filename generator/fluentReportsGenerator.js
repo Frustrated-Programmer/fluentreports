@@ -418,9 +418,9 @@ class FluentReportsGenerator {
 
                 if (this._previewButton != null) {
                     if (this._previewFunction === false) {
-                            this._previewButton.style.display = "none";
+                        this._previewButton.style.display = "none";
                     } else {
-                            this._previewButton.style.display = "";
+                        this._previewButton.style.display = "";
                     }
                 }
 
@@ -1066,8 +1066,10 @@ class FluentReportsGenerator {
             this._currentSelected.blur();
         }
 
-        const offset = this._reportLayout.getBoundingClientRect();
-        const y = (args.clientY - offset.top) + this._reportScroller.scrollTop;
+        const bounding = this._toolBarLayout.getBoundingClientRect();
+        const offset = 1 + bounding.height + bounding.top;
+        const y = (args.clientY - offset) + this._reportScroller.scrollTop;
+
         this._sectionIn = this._getSectionIn(y);
         this.showProperties(this._getSection(this._sectionIn), true);
     }
@@ -1147,7 +1149,7 @@ class FluentReportsGenerator {
                         options.top = 1;
                         new frNewLine(this, this._getSection(this._sectionIn), options ); // jshint ignore:line */
         }));
-        this._toolBarLayout.appendChild(this.UIBuilder.createToolbarButton("\\n", "Page Break", () => {
+        this._toolBarLayout.appendChild(this.UIBuilder.createToolbarButton("\ue81e", "Page Break", () => {
             this._addNewElementFromToolBar(frPageBreak, {top: 1});
         }));
         this._toolBarLayout.appendChild(this.UIBuilder.createSpacer());
@@ -2075,6 +2077,7 @@ class frSection { // jshint ignore:line
                 newPage._parseElement(data);
                 break;
 
+
             case 'calculation':
                 this._calculations.push(data);
                 this.hasCalculations = true;
@@ -2516,7 +2519,26 @@ class frSection { // jshint ignore:line
  * FluentReports Base Element
  */
 class frElement { // jshint ignore:line
-
+    isFunction(value){
+        if(typeof value === "object"){
+            if(value.type === "function"){
+                return true;
+            }
+        }
+        return false;
+    }
+    getNumeralOrFunction(value){
+        if(this.isFunction(value)){
+            return value;
+        }
+        return parseInt(value,10);
+    }
+    getBooleanOrFunction(value){
+        if(this.isFunction(value)){
+            return value;
+        }
+        return !!value;
+    }
     constructor(report, parent /* , options */) {
         this._uuid = _frItemUUID++;
         this._report = report;
@@ -2580,10 +2602,10 @@ class frElement { // jshint ignore:line
     get html() { return this._html; }
 
     get absoluteX() { return this.left; }
-    set absoluteX(val) { this.left = val; }
+    set absoluteX(val) { this.left = this.getNumeralOrFunction(val); }
 
     get absoluteY() { return this.top; }
-    set absoluteY(val) { this.top = val; }
+    set absoluteY(val) { this.top = this.getNumeralOrFunction(val); }
 
     get top() { return parseInt(this._html.style.top,10); }
     set top(val) {
@@ -3105,7 +3127,7 @@ class frSVGElement extends frTitledElement { // jshint ignore:line
         return this._usesSpace;
     }
     set usesSpace(val) {
-        this._usesSpace = !!val;
+        this._usesSpace = this.getBooleanOrFunction(val);
     }
 
     get borderColor(){
@@ -3127,8 +3149,14 @@ class frSVGElement extends frTitledElement { // jshint ignore:line
         return this._fillOpacity;
     }
     set fillOpacity(val){
-        this._fillOpacity = handleOpacity(val);
-        this._svg.style.fillOpacity = minDisplayOpacity(this.fillOpacity);
+        if(this.isFunction(val)){
+            this._fillOpacity = val;
+            this._svg.style.fillOpacity = "0.7";
+        }
+        else{
+            this._fillOpacity = handleOpacity(val);
+            this._svg.style.fillOpacity = minDisplayOpacity(this.fillOpacity);
+        }
     }
 
     get radius() {
@@ -3339,6 +3367,37 @@ class frStandardFooter extends frTitledLabel { // jshint ignore:line
 
 }
 
+class frPageBreak extends  frTitledLabel { // jshint ignore:line
+    get active() { return this._active; }
+    set active(val) {
+        this._active = this.getBooleanOrFunction(val);
+        if(this.isFunction(val)) {
+            this.label = "Page Break: {FUNC}";
+        } else {
+            this.label = "Page Break: ("+(this._active ? "active" : "inactive")+")";
+        }
+    }
+
+    constructor(report, parent, options={}) {
+        super(report, parent, options);
+        this.active = true;
+        this.elementTitle = "Page Breaking Point";
+        this._deleteProperties(["top", "left", "width", "height"]);
+        this._addProperties({type: 'boolean', field: "active", default: false, functionable: true});
+    }
+
+    _saveProperties(props) {
+        super._saveProperties(props);
+        props.type = "newPage";
+    }
+
+    _parseElement(data) {
+        if(data){
+            this.active = data.active;
+        }
+    }
+}
+
 class frNewLine extends  frTitledLabel { // jshint ignore:line
     get count() { return this._count; }
     set count(val) {
@@ -3361,41 +3420,6 @@ class frNewLine extends  frTitledLabel { // jshint ignore:line
 
     _parseElement(data) {
         if (data.count > 0) { this.count = data.count; }
-    }
-}
-
-class frPageBreak extends  frTitledLabel { // jshint ignore:line
-    get active() { return this._active; }
-    set active(val) {
-        //TODO: turn this code into a functionable value, when the fixFunctions branch is merged.
-        this._active = !!val;//this.getBooleanOrFunction(val);
-        /*
-        if(this.isFunction(val){
-            this.label = "Page Break: {FUNC}
-        }
-        else {
-        */
-            this.label = "Page Break: ("+(this._active ? "active" : "inactive")+")";
-        //}
-    }
-
-    constructor(report, parent, options={}) {
-        super(report, parent, options);
-        this.active = true;
-        this.elementTitle = "Page Breakage Point";
-        this._deleteProperties(["top", "left", "width", "height"]);
-        this._addProperties({type: 'boolean', field: "active", default: true,functionable:true});
-    }
-
-    _saveProperties(props) {
-        super._saveProperties(props);
-        props.type = "newPage";
-    }
-
-    _parseElement(data) {
-        if(data){
-            this.active = data.active;
-        }
     }
 }
 
@@ -3715,7 +3739,7 @@ class frPrint extends frTitledLabel {
 
                 // Wrapping isn't actually supported in the engine on Prints
                 // {type: 'boolean', field: "wrap", default: false, destination: "settings"}
-                ]);
+            ]);
 
         // Only add formatter functions, if we pass some in...
         if (this._report._hasFormatterFunctions()) {
@@ -3790,7 +3814,7 @@ class frPrint extends frTitledLabel {
     }
 
     get fontSize() { return this._fontSize; }
-    set fontSize(val) { this._fontSize = parseInt(val, 10); }
+    set fontSize(val) { this._fontSize = this.getNumeralOrFunction(val); }
 
     get characterSpacing() {
         return this._characterSpacing;
@@ -3813,16 +3837,16 @@ class frPrint extends frTitledLabel {
     set absoluteY(val) { this.top = val; }
 
     get underline() { return this._underline; }
-    set underline(val) { this._underline = !!val; }
+    set underline(val) { this._underline = this.getBooleanOrFunction(val); }
 
     get strike() { return this._strike; }
-    set strike(val) { this._strike = !!val; }
+    set strike(val) { this._strike = this.getBooleanOrFunction(val); }
 
     get fontBold() { return this._fontBold; }
-    set fontBold(val) { this._fontBold = !!val; }
+    set fontBold(val) { this._fontBold = this.getBooleanOrFunction(val); }
 
     get fontItalic() { return this._fontItalic; }
-    set fontItalic(val) { this._fontItalic = !!val; }
+    set fontItalic(val) { this._fontItalic = this.getBooleanOrFunction(val); }
 
     get fill() { return this._fill; }
     set fill(val) { this._fill = val; }
@@ -6633,7 +6657,7 @@ class UI { // jshint ignore:line
         // Edit
         addButtons[1].addEventListener("click", () => {
             let key = fieldSelect.value;
-           this.calculationValueEditor(key, resultFields[key], (name, value) => {
+            this.calculationValueEditor(key, resultFields[key], (name, value) => {
                 fieldSelect.options[fieldSelect.selectedIndex].text = name[0].toUpperCase() + name.substring(1,name.length)+": " + value[name];
 
                 //valueValue.innerText = value;
@@ -6715,8 +6739,7 @@ class UI { // jshint ignore:line
                 variableValue.value = value[i];
                 break;
             }
-        }
-        else {
+        } else {
             variableValue.value = value;
         }
         valueDiv.appendChild(value1);
